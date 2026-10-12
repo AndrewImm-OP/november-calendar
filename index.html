@@ -149,7 +149,10 @@ h1,h2,h3,p{margin:0}
 <body>
 <div class="wrap">
   <header class="head">
-    <div class="status-pill"><span class="status-dot"></span><span>Онлайн-синхронизация активна</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div class="status-pill"><span class="status-dot"></span><span>Онлайн-синхронизация активна</span></div>
+      <div id="adminBadge"></div>
+    </div>
     <h1><span class="mo">Ноябрь</span><span class="yr">2026</span></h1>
   </header>
   <p class="notice" id="notice" hidden></p>
@@ -231,6 +234,32 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
   if (tgName) nameEl.value = tgName;
 
+  // Организаторы (Арина Морковка и создатель)
+  const ADMIN_IDS = ['1169372654', '6270740508'];
+  const ADMIN_USERNAMES = ['arinaf_07'];
+
+  const tgUsername = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.username)
+    ? tg.initDataUnsafe.user.username.toLowerCase()
+    : '';
+
+  const isTgAdmin = ADMIN_IDS.includes(String(currentUid)) || ADMIN_USERNAMES.includes(tgUsername);
+
+  const ADMIN_PASS = "coda"; // Резервный пароль для браузера вне ТГ
+  let isAdmin = isTgAdmin
+    || localStorage.getItem('cal_admin') === '1'
+    || window.location.hash.includes('admin=coda')
+    || window.location.search.includes('admin=coda');
+
+  function updateAdminUI() {
+    const badge = $('adminBadge');
+    if (!badge) return;
+    if (isAdmin) {
+      badge.innerHTML = `<span style="font-size:12px;color:var(--win);font-weight:600">👑 Организатор</span>`;
+    } else {
+      badge.innerHTML = '';
+    }
+  }
+
   const state = {
     bookings: [],
     winner: null,
@@ -268,6 +297,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   function render() {
+    updateAdminUI();
     const list = state.bookings;
     let sum = 0;
     const perDay = Array.from({ length: DAYS + 1 }, () => []);
@@ -344,12 +374,14 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         rm.onclick = () => removeBooking(b.id);
         acts.appendChild(rm);
       }
-      const winBtn = document.createElement('button');
-      winBtn.type = 'button';
-      winBtn.className = 'link';
-      winBtn.textContent = win ? 'Снять победу' : 'Победитель';
-      winBtn.onclick = () => toggleWinner(b.name);
-      acts.appendChild(winBtn);
+      if (isAdmin) {
+        const winBtn = document.createElement('button');
+        winBtn.type = 'button';
+        winBtn.className = 'link';
+        winBtn.textContent = win ? 'Снять победу' : 'Победитель';
+        winBtn.onclick = () => toggleWinner(b.name);
+        acts.appendChild(winBtn);
+      }
 
       row.appendChild(acts);
       box.appendChild(row);
@@ -455,6 +487,10 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   async function toggleWinner(name) {
+    if (!isAdmin) {
+      alert('Только организатор может отмечать победителя!');
+      return;
+    }
     haptic();
     try {
       if (state.winner === name) {
