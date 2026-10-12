@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Календарь ноября</title>
+<!-- Telegram WebApp SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Supabase JS Client v2 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Unbounded:wght@600&display=swap">
+<style>
+:root{
+  --bg:#10171C;
+  --surface:#182128;
+  --field:#0E1419;
+  --ink:#E4EAEE;
+  --ink-2:#9BAAB4;
+  --line:#2A3740;
+  --line-strong:#4B5D69;
+  --accent:#E2766F;
+  --accent-ink:#1B0F10;
+  --sel:#3A2428;
+  --weekend:#D89BA0;
+  --holiday:#D9A441;
+  --win:#6FD1A8;
+  --win-tint:#18312A;
+  --ok:#7CC4A4;
+  --err:#FF8A80;
+  --ps:52%;
+  --pl:62%;
+  --f-display:'Unbounded','Arial Black',system-ui,sans-serif;
+  --f-body:'Golos Text',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font:400 15px/1.45 var(--f-body);
+  padding:16px 14px 48px;
+  -webkit-tap-highlight-color:transparent;
+}
+[hidden]{display:none!important}
+.wrap{max-width:960px;margin:0 auto}
+h1,h2,h3,p{margin:0}
+
+.head{display:grid;gap:4px;margin-bottom:18px}
+.head h1{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}
+.mo{font:600 clamp(2rem,8vw,3rem)/1 var(--f-display);letter-spacing:-0.02em}
+.yr{font:500 1.1rem/1 var(--f-mono);color:var(--ink-2)}
+
+.notice{
+  margin-bottom:16px;padding:12px;border:1px solid var(--line-strong);
+  border-left:4px solid var(--holiday);background:var(--surface);border-radius:6px;font-size:13px;
+}
+
+.layout{display:grid;gap:24px;grid-template-columns:1fr}
+@media (min-width:820px){
+  .layout{grid-template-columns:1.25fr 1fr;align-items:start}
+}
+
+.stats{display:flex;flex-wrap:wrap;gap:12px 28px;margin-bottom:14px}
+.stat{display:grid;gap:2px}
+.stat .k{font:500 11px/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.stat .v{font:500 1.6rem/1.1 var(--f-mono);font-variant-numeric:tabular-nums}
+.stat .v.win{color:var(--win);font-family:var(--f-body);font-weight:600}
+
+.wd{
+  display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px;
+  font:500 11px/1 var(--f-mono);text-align:center;color:var(--ink-2);
+}
+.wd .we{color:var(--weekend)}
+.grid{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  gap:2px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;
+}
+.blank{background:var(--bg)}
+.day{
+  position:relative;display:flex;flex-direction:column;gap:2px;
+  aspect-ratio:1/1.05;padding:5px;border:0;background:var(--surface);color:var(--ink);
+  text-align:left;cursor:pointer;
+}
+.day:hover{background:var(--sel)}
+.day.win{box-shadow:inset 0 0 0 2px var(--win)}
+.day[data-sel]{background:var(--sel)}
+.day[data-sel="edge"]{box-shadow:inset 0 0 0 2px var(--accent)}
+.num{font:600 14px/1.1 var(--f-body)}
+.day.we .num{color:var(--weekend)}
+.rt{font:500 10px/1.1 var(--f-mono);color:var(--ink-2);min-height:11px}
+.bars{display:flex;gap:2px;margin-top:auto;height:4px}
+.bar{flex:1 1 0;height:4px;border-radius:1px;background:hsl(var(--h) var(--ps) var(--pl))}
+.day.hol::after{
+  content:"";position:absolute;top:0;right:0;border-style:solid;
+  border-width:0 11px 11px 0;border-color:transparent var(--holiday) transparent transparent;
+}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:14px}
+.panel h2{font:600 17px/1.2 var(--f-body)}
+.sel-box{display:grid;gap:4px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.sel-text{font-size:15px;font-weight:600}
+.sel-sub{font-size:13px;color:var(--ink-2)}
+.field{display:grid;gap:6px}
+.field label{font-size:13px;font-weight:500;color:var(--ink-2)}
+.field input{
+  width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line-strong);
+  border-radius:6px;background:var(--field);color:var(--ink);font:inherit;
+}
+.field input:focus-visible{outline:2px solid var(--accent)}
+.hint{font-size:12px;color:var(--ink-2);min-height:16px}
+.hint.err{color:var(--err)}
+.money{position:relative}
+.money input{padding-right:85px;font-family:var(--f-mono)}
+.money span{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-2)}
+.total{font:500 14px/1.4 var(--f-mono);min-height:18px}
+.btn{
+  width:100%;min-height:46px;border:0;border-radius:6px;background:var(--accent);
+  color:var(--accent-ink);font:600 15px/1 var(--f-body);cursor:pointer;
+}
+.btn:hover:not(:disabled){filter:brightness(1.1)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;padding:4px 0;color:var(--ink-2);font-size:13px;text-decoration:underline;cursor:pointer}
+.link.warn{color:var(--err);font-weight:600}
+.msg{min-height:18px;font-size:13px}
+.msg.err{color:var(--err)}
+.msg.ok{color:var(--ok)}
+
+.sec-title{font:600 12px/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:14px 0 8px}
+.row, .trow{
+  display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:start;
+  padding:10px 4px;border-top:1px solid var(--line);
+}
+.trow{grid-template-columns:18px 10px minmax(0,1fr) auto}
+.trow.is-win{background:var(--win-tint)}
+.rank{font:500 12px/1.8 var(--f-mono);color:var(--ink-2)}
+.sw{width:10px;height:10px;margin-top:5px;border-radius:2px;background:hsl(var(--h) var(--ps) var(--pl))}
+.who{font-weight:600;word-break:break-word}
+.who .me{margin-left:6px;font:500 10px/1 var(--f-mono);color:var(--accent);text-transform:uppercase}
+.who .tag{display:inline-block;margin-left:6px;padding:2px 5px;border:1px solid currentColor;border-radius:3px;font:500 10px/1 var(--f-mono);color:var(--win)}
+.when{display:block;font-weight:400;font-size:12px;color:var(--ink-2)}
+.amt{text-align:right;font:500 13px/1.3 var(--f-mono)}
+.acts{grid-column:3/5;display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ok);margin-bottom:8px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="status-pill"><span class="status-dot"></span><span>Онлайн-синхронизация активна</span></div>
+    <h1><span class="mo">Ноябрь</span><span class="yr">2026</span></h1>
+  </header>
+  <p class="notice" id="notice" hidden></p>
+  <div class="layout">
+    <section class="cal">
+      <div class="stats">
+        <div class="stat"><span class="k">Общая сумма</span><span class="v" id="grand">0 ₽</span></div>
+        <div class="stat" id="winStat" hidden><span class="k">Победитель</span><span class="v win" id="winName"></span></div>
+      </div>
+      <div class="wd">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span class="we">Сб</span><span class="we">Вс</span>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <aside class="side">
+      <form class="panel" id="form" novalidate>
+        <h2>Записаться на дни</h2>
+        <div class="sel-box">
+          <p class="sel-text" id="selText">Дни не выбраны</p>
+          <p class="sel-sub" id="selSub">Нажмите на день в календаре</p>
+          <button type="button" class="link" id="clearSel" hidden>Сбросить выбор</button>
+        </div>
+        <div class="field">
+          <label for="name">Ваше имя</label>
+          <input id="name" name="name" type="text" maxlength="35" placeholder="Например, Анна">
+          <p class="hint" id="nameHint"></p>
+        </div>
+        <div class="field">
+          <label for="rate">Ставка в день</label>
+          <div class="money">
+            <input id="rate" name="rate" type="number" min="1" max="1000000" placeholder="1000">
+            <span>₽ / день</span>
+          </div>
+        </div>
+        <p class="total" id="total"></p>
+        <button type="submit" class="btn" id="submit">Закрепить</button>
+        <p class="msg" id="msg"></p>
+      </form>
+    </aside>
+
+    <section class="list">
+      <h2 class="sec-title">Участники и ставки</h2>
+      <div id="rows"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://njeyyhkkqwynybuvhjcv.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qZXl5aGtrcXd5bnlidXZoamN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2NTgzNjgsImV4cCI6MjEwNDIzNDM2OH0.Mq5kyDl-GZd5ZkWunAm_voq_nDYFf1TE-jSMyeKqTpA";
+
+(function () {
+  'use strict';
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  if (tg) {
+    try {
+      tg.ready();
+      tg.expand();
+    } catch (e) {}
+  }
+
+  const DAYS = 30;
+  const FIRST_DOW = (new Date(2026, 10, 1).getDay() + 6) % 7; // Понедельник = 0
+  const HOLIDAYS = { 4: 'День народного единства' };
+
+  let currentUid = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user)
+    ? String(tg.initDataUnsafe.user.id)
+    : (localStorage.getItem('cal_uid') || ('user_' + Math.random().toString(36).slice(2, 9)));
+  localStorage.setItem('cal_uid', currentUid);
+
+  const tgName = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user)
+    ? [tg.initDataUnsafe.user.first_name, tg.initDataUnsafe.user.last_name].filter(Boolean).join(' ')
+    : '';
+
+  const $ = id => document.getElementById(id);
+  const grid = $('grid'), form = $('form'), nameEl = $('name'), rateEl = $('rate');
+  const msgEl = $('msg'), totalEl = $('total'), submitEl = $('submit');
+
+  if (tgName) nameEl.value = tgName;
+
+  const state = {
+    bookings: [],
+    winner: null,
+    sel: null,
+    anchor: null,
+    phase: 'idle',
+    busy: false
+  };
+  const cells = [];
+
+  const nf = new Intl.NumberFormat('ru-RU');
+  const rub = n => nf.format(n) + ' ₽';
+  const norm = s => String(s || '').trim().toLowerCase().replace(/ё/g, 'е');
+  const hueOf = str => {
+    let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return (h % 12) * 30 + 10;
+  };
+  const haptic = () => { if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); };
+
+  function buildGrid() {
+    for (let i = 0; i < FIRST_DOW; i++) grid.appendChild(document.createElement('div')).className = 'blank';
+    for (let d = 1; d <= DAYS; d++) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'day'; b.dataset.d = d;
+      if ((FIRST_DOW + d - 1) % 7 >= 5) b.classList.add('we');
+      if (HOLIDAYS[d]) b.classList.add('hol');
+      b.innerHTML = `<span class="num">${d}</span><span class="rt"></span><span class="bars"></span>`;
+      grid.appendChild(b);
+      cells[d] = b;
+    }
+  }
+
+  function isWinner(b) {
+    return state.winner && norm(b.name) === norm(state.winner);
+  }
+
+  function render() {
+    const list = state.bookings;
+    let sum = 0;
+    const perDay = Array.from({ length: DAYS + 1 }, () => []);
+    list.forEach(b => {
+      sum += b.rate * (b.to_day - b.from_day + 1);
+      for (let d = b.from_day; d <= b.to_day; d++) perDay[d].push(b);
+    });
+    $('grand').textContent = rub(sum);
+
+    const ws = $('winStat');
+    if (state.winner) {
+      ws.hidden = false;
+      $('winName').textContent = state.winner;
+    } else {
+      ws.hidden = true;
+    }
+
+    // Дни календаря
+    for (let d = 1; d <= DAYS; d++) {
+      const cell = cells[d];
+      const hits = perDay[d];
+      const rt = cell.children[1], bars = cell.children[2];
+      bars.innerHTML = '';
+      let hasWin = false;
+      if (hits.length) {
+        const top = Math.max(...hits.map(h => h.rate));
+        rt.textContent = top >= 1000 ? (Math.round(top / 100) / 10).toString().replace('.', ',') + 'к' : top;
+        hits.slice(0, 6).forEach(h => {
+          if (isWinner(h)) hasWin = true;
+          const bar = document.createElement('span');
+          bar.className = 'bar';
+          bar.style.setProperty('--h', hueOf(norm(h.name)));
+          bars.appendChild(bar);
+        });
+      } else {
+        rt.textContent = '';
+      }
+      cell.classList.toggle('win', hasWin);
+      if (state.sel && d >= state.sel.from && d <= state.sel.to) {
+        cell.dataset.sel = (d === state.sel.from || d === state.sel.to) ? 'edge' : 'mid';
+      } else {
+        delete cell.dataset.sel;
+      }
+    }
+
+    // Список участников
+    const box = $('rows');
+    box.innerHTML = '';
+    const sorted = list.slice().sort((a,b) => (b.rate * (b.to_day - b.from_day + 1)) - (a.rate * (a.to_day - a.from_day + 1)));
+    if (!sorted.length) {
+      box.innerHTML = '<p style="color:var(--ink-2);font-size:14px;padding:12px 0">Пока никого нет. Выберите дни и сделайте ставку!</p>';
+    }
+    sorted.forEach((b, idx) => {
+      const row = document.createElement('div');
+      const win = isWinner(b);
+      row.className = 'trow' + (win ? ' is-win' : '');
+      const daysCount = b.to_day - b.from_day + 1;
+      const isMe = b.uid === currentUid;
+      row.innerHTML = `
+        <span class="rank">${idx + 1}</span>
+        <span class="sw" style="--h:${hueOf(norm(b.name))}"></span>
+        <div class="who">${b.name} ${isMe ? '<span class="me">Вы</span>' : ''} ${win ? '<span class="tag">Победитель</span>' : ''}
+          <span class="when">${b.from_day === b.to_day ? b.from_day : b.from_day + '–' + b.to_day} ноября · ${daysCount} дн. по ${rub(b.rate)}</span>
+        </div>
+        <div class="amt">${rub(b.rate * daysCount)}</div>
+      `;
+      const acts = document.createElement('div');
+      acts.className = 'acts';
+      if (isMe) {
+        const rm = document.createElement('button');
+        rm.type = 'button';
+        rm.className = 'link warn';
+        rm.textContent = 'Удалить';
+        rm.onclick = () => removeBooking(b.id);
+        acts.appendChild(rm);
+      }
+      const winBtn = document.createElement('button');
+      winBtn.type = 'button';
+      winBtn.className = 'link';
+      winBtn.textContent = win ? 'Снять победу' : 'Победитель';
+      winBtn.onclick = () => toggleWinner(b.name);
+      acts.appendChild(winBtn);
+
+      row.appendChild(acts);
+      box.appendChild(row);
+    });
+
+    // Форма
+    if (state.sel) {
+      $('clearSel').hidden = false;
+      const count = state.sel.to - state.sel.from + 1;
+      $('selText').textContent = state.sel.from === state.sel.to ? `${state.sel.from} ноября` : `${state.sel.from}–${state.sel.to} ноября (${count} дн.)`;
+      const r = Number(rateEl.value);
+      totalEl.textContent = r > 0 ? `${count} дн. × ${rub(r)} = ${rub(count * r)}` : '';
+    } else {
+      $('clearSel').hidden = true;
+      $('selText').textContent = 'Дни не выбраны';
+      totalEl.textContent = '';
+    }
+  }
+
+  function pick(d) {
+    haptic();
+    if (state.phase === 'end') {
+      state.sel = { from: Math.min(state.anchor, d), to: Math.max(state.anchor, d) };
+      state.phase = 'done';
+    } else {
+      state.anchor = d;
+      state.sel = { from: d, to: d };
+      state.phase = 'end';
+    }
+    render();
+  }
+
+  grid.addEventListener('click', e => {
+    const b = e.target.closest('.day');
+    if (b) pick(Number(b.dataset.d));
+  });
+
+  $('clearSel').addEventListener('click', () => {
+    state.sel = null; state.phase = 'idle'; render();
+  });
+  rateEl.addEventListener('input', render);
+
+  // Подключение Supabase
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  async function loadData() {
+    try {
+      const [resBookings, resMeta] = await Promise.all([
+        client.from('november_bookings').select('*'),
+        client.from('november_meta').select('*').eq('key', 'winner').maybeSingle()
+      ]);
+      if (resBookings.data) state.bookings = resBookings.data;
+      if (resMeta.data && resMeta.data.value) state.winner = resMeta.data.value.name || null;
+      render();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function submitBooking(e) {
+    e.preventDefault();
+    if (state.busy) return;
+    if (!state.sel) { msgEl.textContent = 'Выберите день или период!'; msgEl.className = 'msg err'; return; }
+    const name = nameEl.value.trim();
+    const rate = Number(rateEl.value);
+    if (!name || rate <= 0) { msgEl.textContent = 'Укажите имя и корректную ставку!'; msgEl.className = 'msg err'; return; }
+
+    haptic();
+    state.busy = true;
+    submitEl.disabled = true;
+    try {
+      const { error } = await client.from('november_bookings').insert([{
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        uid: currentUid,
+        name: name,
+        from_day: state.sel.from,
+        to_day: state.sel.to,
+        rate: rate
+      }]);
+      if (error) throw error;
+      msgEl.textContent = 'Успешно закреплено!'; msgEl.className = 'msg ok';
+      state.sel = null; state.phase = 'idle';
+      await loadData();
+    } catch (err) {
+      msgEl.textContent = 'Ошибка сохранения: ' + (err.message || err); msgEl.className = 'msg err';
+    } finally {
+      state.busy = false;
+      submitEl.disabled = false;
+      render();
+    }
+  }
+  form.addEventListener('submit', submitBooking);
+
+  async function removeBooking(id) {
+    if (!confirm('Точно убрать ставку?')) return;
+    haptic();
+    try {
+      await client.from('november_bookings').delete().eq('id', id);
+      await loadData();
+    } catch (e) {
+      alert('Ошибка при удалении: ' + e.message);
+    }
+  }
+
+  async function toggleWinner(name) {
+    haptic();
+    try {
+      if (state.winner === name) {
+        await client.from('november_meta').upsert({ key: 'winner', value: { name: null } });
+      } else {
+        await client.from('november_meta').upsert({ key: 'winner', value: { name } });
+      }
+      await loadData();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+    }
+  }
+
+  // Realtime подписка
+  try {
+    client.channel('realtime_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'november_bookings' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'november_meta' }, () => loadData())
+      .subscribe();
+  } catch (e) {
+    console.error('Realtime subscription failed, using polling', e);
+  }
+
+  // Фоновый поллинг каждые 4 секунды для надежности
+  setInterval(loadData, 4000);
+
+  buildGrid();
+  loadData();
+})();
+</script>
+</body>
+</html>
